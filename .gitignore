@@ -5,3 +5,5 @@ __pycache__/
 .env
 .vscode/
 .pytest_cache/
+datapilot.db
+.venv_old/
