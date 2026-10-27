@@ -1,170 +1,126 @@
-// TODO: Testing Git feature branch and PR workflow
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
-interface PipelineReq {
-  title: string;
-  description: string;
+interface Requirement {
+  id: number;
   source_table: string;
   target_table: string;
+  description?: string;
 }
 
 function App() {
-  // 1. Form state variables
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [sourceTable, setSourceTable] = useState('');
   const [targetTable, setTargetTable] = useState('');
-  
-  // 2. Feedback and history state variables
-  const [responseMessage, setResponseMessage] = useState('');
-  const [requirementsList, setRequirementsList] = useState<PipelineReq[]>([]);
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Function to fetch all submitted pipeline requirements from FastAPI
+  // Fetch requirements from FastAPI backend on load
   const fetchRequirements = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/requirements');
-      const data = await res.json();
-      if (res.ok) {
-        setRequirementsList(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch requirements history:', err);
+      const response = await fetch('http://localhost:8000/api/requirements');
+      const data = await response.json();
+      setRequirements(data);
+    } catch (error) {
+      console.error('Error fetching requirements:', error);
     }
   };
 
-  // Fetch history when the component first loads
   useEffect(() => {
     fetchRequirements();
   }, []);
 
-  // 3. Form submit handler
+  // Handle form submission to create a new pipeline requirement
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!sourceTable || !targetTable) return;
 
-    const payload = {
-      title,
-      description,
-      source_table: sourceTable,
-      target_table: targetTable,
-    };
-
+    setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/requirements', {
+      const response = await fetch('http://localhost:8000/api/requirements', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          source_table: sourceTable,
+          target_table: targetTable,
+          description: description,
+        }),
       });
 
-      const data = await res.json();
-      
-      if (res.ok) {
-        setResponseMessage(`Success! Server says: "${data.message}"`);
-        // Clear form fields
-        setTitle('');
-        setDescription('');
+      if (response.ok) {
         setSourceTable('');
         setTargetTable('');
-        // Refresh history list immediately
-        fetchRequirements();
-      } else {
-        setResponseMessage(`Validation Error: Check your Pydantic fields.`);
+        setDescription('');
+        fetchRequirements(); // Refresh the list
       }
-    } catch (err) {
-      setResponseMessage('Could not connect to backend. Is FastAPI running?');
-      console.error(err);
+    } catch (error) {
+      console.error('Error creating requirement:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: '40px', fontFamily: 'Arial, sans-serif', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' }}>
       <h1>DataPilot 🚀</h1>
-      <p>AI Data Pipeline Copilot (J&J Learning Simulation)</p>
-      
-      {/* Pipeline Requirement Form */}
-      <form onSubmit={handleSubmit} style={{ background: '#f9f9f9', padding: '20px', borderRadius: '8px', marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '15px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-        <h3>Define Pipeline Requirement</h3>
-        
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Pipeline Title:</label>
-          <input 
-            type="text" 
-            value={title} 
-            onChange={(e) => setTitle(e.target.value)} 
-            placeholder="e.g., Supply Chain Sync"
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+      <p>Enterprise Data Pipeline Requirement Manager</p>
+
+      {/* Form to add a new requirement */}
+      <form onSubmit={handleSubmit} style={{ background: '#f4f4f4', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem' }}>
+        <h3>Add New Pipeline Requirement</h3>
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem' }}>Source Table:</label>
+          <input
+            type="text"
+            value={sourceTable}
+            onChange={(e) => setSourceTable(e.target.value)}
+            placeholder="e.g., raw_users"
             required
+            style={{ width: '100%', padding: '0.5rem' }}
           />
         </div>
-
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Description:</label>
-          <textarea 
-            value={description} 
-            onChange={(e) => setDescription(e.target.value)} 
-            placeholder="e.g., Sync daily inventory levels from EU plants"
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem' }}>Target Table:</label>
+          <input
+            type="text"
+            value={targetTable}
+            onChange={(e) => setTargetTable(e.target.value)}
+            placeholder="e.g., dim_users"
             required
+            style={{ width: '100%', padding: '0.5rem' }}
           />
         </div>
-
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Source Table:</label>
-          <input 
-            type="text" 
-            value={sourceTable} 
-            onChange={(e) => setSourceTable(e.target.value)} 
-            placeholder="e.g., raw_inventory_eu"
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-            required
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem' }}>Description:</label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g., Daily sync of user profiles"
+            style={{ width: '100%', padding: '0.5rem' }}
           />
         </div>
-
-        <div>
-          <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px' }}>Target Table:</label>
-          <input 
-            type="text" 
-            value={targetTable} 
-            onChange={(e) => setTargetTable(e.target.value)} 
-            placeholder="e.g., clean_inventory_warehouse"
-            style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-            required
-          />
-        </div>
-
-        <button type="submit" style={{ background: '#007bff', color: 'white', padding: '10px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
-          Submit Requirement
+        <button type="submit" disabled={loading} style={{ background: '#007bff', color: 'white', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '4px', cursor: 'pointer' }}>
+          {loading ? 'Saving...' : 'Save Requirement'}
         </button>
       </form>
 
-      {/* Response Display Box */}
-      {responseMessage && (
-        <div style={{ marginTop: '20px', padding: '15px', background: '#e2f0d9', borderRadius: '8px', color: '#274e13', fontWeight: 'bold' }}>
-          {responseMessage}
-        </div>
+      {/* List of saved requirements from SQLite */}
+      <h3>Saved Requirements</h3>
+      {requirements.length === 0 ? (
+        <p>No pipeline requirements found yet.</p>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {requirements.map((req) => (
+            <li key={req.id} style={{ background: '#fff', border: '1px solid #ddd', padding: '1rem', marginBottom: '0.75rem', borderRadius: '6px' }}>
+              <strong>{req.source_table}</strong> ➡️ <strong>{req.target_table}</strong>
+              {req.description && <p style={{ margin: '0.5rem 0 0 0', color: '#555' }}>{req.description}</p>}
+            </li>
+          ))}
+        </ul>
       )}
-
-      {/* Pipeline History Section */}
-      <div style={{ marginTop: '40px' }}>
-        <h3>Pipeline History Log 📋</h3>
-        {requirementsList.length === 0 ? (
-          <p style={{ color: '#666', fontStyle: 'italic' }}>No pipeline requirements submitted yet this session.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '15px' }}>
-            {requirementsList.map((req, index) => (
-              <div key={index} style={{ background: '#fff', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#007bff' }}>{req.title}</h4>
-                <p style={{ margin: '0 0 10px 0', color: '#444' }}>{req.description}</p>
-                <div style={{ fontSize: '13px', background: '#f1f1f1', padding: '6px 10px', borderRadius: '4px', display: 'inline-block' }}>
-                  <code>{req.source_table}</code> ➡️ <code>{req.target_table}</code>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
